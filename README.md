@@ -12,7 +12,7 @@ Xenova Transformersを用いてブラウザ上で直接（クライアントサ�
 *   **レスポンシブデザイン**: Gridレイアウトによる動的なタイル配置。
 
 ## デモ (Demo)
-GitHub Pagesで公開されています: [Demo Link](https://dma.github.io/Semantic-Explorer/)
+GitHub Pagesで公開されています: [Demo Link](https://dma-cmyk.github.io/Semantic-Explorer/)
 *(URLはリポジトリ名に応じて変更してください)*
 
 ## ローカルでの実行方法 (How to run locally)
