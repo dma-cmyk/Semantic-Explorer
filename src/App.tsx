@@ -1,8 +1,55 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Trash2, Loader2, Database, BrainCircuit, Activity, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, LayoutTemplate } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Plus, Trash2, Database, BrainCircuit, Activity, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, LayoutTemplate } from 'lucide-react';
+
+// --- 型定義 ---
+interface Item {
+  id: string;
+  text: string;
+  vector: number[];
+}
+
+interface Cluster {
+  id: number;
+  name: string;
+  itemIds: string[];
+}
+
+interface SearchResult {
+  item: Item;
+  score: number;
+}
+
+interface ThemeConfig {
+  id: string;
+  label: string;
+  colors: string[];
+  bg: string;
+  text: string;
+  sidebarBg: string;
+  sidebarLeftClass: string;
+  sidebarRightClass: string;
+  panel: string;
+  listItem: string;
+  button: string;
+  input: string;
+  searchBar: string;
+  iconBg: string;
+  sideBtn: string;
+  tileClass: string;
+  textColor: string;
+  watermark: string;
+  scoreClass: string;
+  switchContainer: string;
+  switchBase: string;
+  switchActive: string;
+  barContainer: string;
+  barFill: string;
+  barText: string;
+  border: string;
+}
 
 // --- ユーティリティ関数 ---
-const cosineSimilarity = (vecA, vecB) => {
+const cosineSimilarity = (vecA: number[], vecB: number[]) => {
   let dotProduct = 0, normA = 0, normB = 0;
   for (let i = 0; i < vecA.length; i++) {
     dotProduct += vecA[i] * vecB[i];
@@ -13,7 +60,7 @@ const cosineSimilarity = (vecA, vecB) => {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 };
 
-const getTileSpan = (text) => {
+const getTileSpan = (text: string) => {
   let hash = 0;
   for (let i = 0; i < text.length; i++) hash = text.charCodeAt(i) + ((hash << 5) - hash);
   const rand = Math.abs(hash) % 100;
@@ -29,7 +76,7 @@ const getTileSpan = (text) => {
 };
 
 // --- テーマ定義 (Neu / M2 / M3 / Win10) ---
-const THEMES = {
+const THEMES: Record<string, ThemeConfig> = {
   neumorphism: {
     id: 'neumorphism',
     label: 'Neumorphism',
@@ -155,24 +202,24 @@ const INITIAL_DATA = [
 
 // --- メインコンポーネント ---
 export default function VectorExplorer() {
-  const [modelStatus, setModelStatus] = useState('initializing');
+  const [modelStatus, setModelStatus] = useState<'initializing' | 'loading' | 'ready' | 'error'>('initializing');
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [extractor, setExtractor] = useState(null);
+  const [extractor, setExtractor] = useState<any>(null);
   
-  const [items, setItems] = useState([]);
-  const [clustersInfo, setClustersInfo] = useState([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [clustersInfo, setClustersInfo] = useState<Cluster[]>([]);
 
   const [inputText, setInputText] = useState('');
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]); 
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]); 
   
-  const [hoveredItem, setHoveredItem] = useState(null);
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
 
   // ★テーマ設定
-  const [themeId, setThemeId] = useState('neumorphism');
+  const [themeId, setThemeId] = useState<keyof typeof THEMES>('neumorphism');
   const t = THEMES[themeId];
 
   // --- Gridの動的サイズ計算 ---
@@ -198,8 +245,8 @@ export default function VectorExplorer() {
   const sortedItems = useMemo(() => {
     if (items.length <= 1) return items;
     const unvisited = [...items];
-    const sorted = [];
-    let current = unvisited.shift();
+    const sorted: Item[] = [];
+    let current = unvisited.shift()!;
     sorted.push(current);
     
     while (unvisited.length > 0) {
@@ -221,10 +268,11 @@ export default function VectorExplorer() {
     const initModel = async () => {
       try {
         setModelStatus('loading');
+        // @ts-ignore
         const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.16.0/dist/transformers.min.js');
         env.allowLocalModels = false;
         const pipe = await pipeline('feature-extraction', 'Xenova/paraphrase-multilingual-MiniLM-L12-v2', {
-          progress_callback: (info) => {
+          progress_callback: (info: any) => {
             if (info.status === 'progress' && info.progress) setLoadingProgress(Math.round(info.progress));
           }
         });
@@ -244,7 +292,7 @@ export default function VectorExplorer() {
   useEffect(() => {
     if (modelStatus === 'ready' && extractor && items.length === 0) {
       const loadInitialData = async () => {
-        const newItems = [];
+        const newItems: Item[] = [];
         for (const text of INITIAL_DATA) {
           const output = await extractor(text, { pooling: 'mean', normalize: true });
           newItems.push({ 
@@ -263,7 +311,7 @@ export default function VectorExplorer() {
     const k = Math.min(8, Math.max(2, Math.floor(items.length / 4))); 
     let centroids = [items[0].vector];
     for (let i = 1; i < k; i++) {
-      let maxDist = -1, farthestVector = null;
+      let maxDist = -1, farthestVector: number[] | null = null;
       for (const item of items) {
         let minDist = Infinity;
         for (const centroid of centroids) {
@@ -302,7 +350,7 @@ export default function VectorExplorer() {
       centroids = newCentroids;
     }
 
-    const clusters = [];
+    const clusters: Cluster[] = [];
     for (let c = 0; c < k; c++) {
       const clusterItems = items.filter((_, i) => assignments[i] === c);
       if (clusterItems.length === 0) continue;
@@ -321,7 +369,7 @@ export default function VectorExplorer() {
   }, [items.length]);
 
   // 4. インタラクション処理
-  const handleAddText = async (e) => {
+  const handleAddText = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !extractor) return;
     const text = inputText.trim();
@@ -330,19 +378,19 @@ export default function VectorExplorer() {
     setItems(prev => [...prev, { id: Math.random().toString(36).substr(2, 9), text, vector: Array.from(output.data) }]);
   };
 
-  const handleSearch = async (e) => {
+  const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
     if (!query.trim() || !extractor || items.length === 0) { setSearchResults([]); return; }
     try {
       const output = await extractor(query, { pooling: 'mean', normalize: true });
-      const vector = Array.from(output.data);
+      const vector = Array.from(output.data) as number[];
       const results = items.map(item => ({ item, score: cosineSimilarity(vector, item.vector) })).sort((a, b) => b.score - a.score);
       setSearchResults(results.slice(0, 5));
     } catch (err) { console.error(err); }
   };
 
-  const removeText = (id) => {
+  const removeText = (id: string) => {
     setItems(prev => prev.filter(item => item.id !== id));
     if (searchQuery) { setSearchQuery(''); setSearchResults([]); }
   };
@@ -423,7 +471,7 @@ export default function VectorExplorer() {
               {Object.values(THEMES).map(themeDef => (
                 <button 
                   key={themeDef.id}
-                  onClick={() => setThemeId(themeDef.id)} 
+                  onClick={() => setThemeId(themeDef.id as keyof typeof THEMES)} 
                   className={`px-3 py-1.5 text-[11px] font-bold whitespace-nowrap transition-all ${themeId === themeDef.id ? t.switchActive : t.switchBase}`}
                 >
                   {themeDef.label}
